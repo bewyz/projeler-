@@ -6,7 +6,7 @@ Bu repoda perakende operasyonları alanında geliştirdiğim iki araç yer almak
 
 Çok sayıda mağazaya ait denetim raporlarını otomatik analiz eden tarayıcı tabanlı iş zekası aracı. PDF'ten veri çekme, trend analizi, ısı haritası ve bölgesel kıyaslama özellikleri içerir.
 
-[▶ Uygulamayı Aç](https://bewyz.github.io/projeler-/mades_is_analiz_demo.html)
+[▶ Uygulamayı Aç](https://bewyz.github.io/projeler-/mades_is_analiz_demo-.html)
 
 ## SatışRadar v2
 
