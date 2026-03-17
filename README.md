@@ -12,4 +12,4 @@ Bu repoda perakende operasyonları alanında geliştirdiğim iki araç yer almak
 
 Mağaza bazlı satış boşluklarını Excel verisi üzerinden otomatik tespit eden, tamamen offline çalışan araç. Tarih aralığı, mağaza filtresi ve Excel dışa aktarma özellikleri mevcuttur.
 
-[▶ Uygulamayı Aç](https://bewyz.github.io/projeler-/SatisRadar_v2%20(3).html)
+[▶ Uygulamayı Aç](https://bewyz.github.io/projeler-/SatisRadar_v2.html)
