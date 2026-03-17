@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SatışRadar v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+header{background:#161b22;border-bottom:1px solid #30363d;padding:16px 32px;display:flex;align-items:center;gap:14px}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#2d6a4f,#1b4332);display:flex;align-items:center;justify-content:center;font-size:22px}
+header h1{font-size:20px;font-weight:800}
+header p{font-size:12px;color:#8b949e}
+.main{max-width:1100px;margin:0 auto;padding:24px 16px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;margin-bottom:16px}
+.dropzone{border:2px dashed #30363d;border-radius:10px;padding:40px;text-align:center;cursor:pointer;transition:.2s}
+.dropzone:hover,.dropzone.drag{border-color:#3fb950;background:rgba(63,185,80,.05)}
+.dropzone.loaded{border-color:#3fb950;border-style:solid}
+.dz-icon{font-size:36px;margin-bottom:8px}
+.dz-title{font-weight:700;font-size:15px;margin-bottom:4px}
+.dz-sub{font-size:12px;color:#8b949e}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+label{font-size:11px;color:#8b949e;font-family:monospace}
+input{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:7px 10px;font-size:13px}
+.btn{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-size:13px}
+.btn-green{background:#238636;color:#fff}
+.btn-green:hover{background:#2ea043}
+.btn-blue{background:#1f6feb;color:#fff}
+.btn-blue:hover{background:#388bfd}
+#init-bar{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;margin-bottom:16px;text-align:center}
+#init-progress{width:100%;height:6px;background:#21262d;border-radius:3px;margin-top:10px;overflow:hidden}
+#init-fill{height:100%;background:linear-gradient(90deg,#238636,#3fb950);border-radius:3px;width:0%;transition:width .3s}
+#loading{text-align:center;padding:32px;color:#8b949e;display:none}
+#err{background:#3d1a1a;border:1px solid #f85149;border-radius:8px;padding:12px 16px;color:#f85149;display:none;margin-bottom:12px;font-size:13px}
+#results{display:none}
+.summary-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sc{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 18px;text-align:center;flex:1;min-width:100px}
+.sc .num{font-size:28px;font-weight:800}
+.sc .lbl{font-size:11px;color:#8b949e;margin-top:2px}
+.s-red .num{color:#f85149}
+.s-green .num{color:#3fb950}
+.s-orange .num{color:#d29922}
+.s-purple .num{color:#a5a3ff}
+.store-block{background:#161b22;border:1px solid #30363d;border-radius:10px;margin-bottom:10px;overflow:hidden}
+.store-hdr{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:#1c2128}
+.store-hdr:hover{background:#22272e}
+.store-name{font-weight:700;font-size:14px}
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;font-family:monospace}
+.b-red{background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.3)}
+.b-orange{background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.3)}
+.store-rows{display:none;padding:0 16px 12px}
+.gap-row{display:flex;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;font-size:13px}
+.gap-row:last-child{border-bottom:none}
+.gap-time{font-family:monospace;color:#8b949e;width:140px;flex-shrink:0}
+.gap-dur{font-family:monospace;font-weight:700;width:60px;flex-shrink:0}
+.gap-date{font-family:monospace;font-size:11px;color:#8b949e;width:90px;flex-shrink:0}
+.store-list-wrap{max-height:220px;overflow-y:auto;border:1px solid #30363d;border-radius:6px;padding:4px}
+.store-item{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;font-size:13px;cursor:pointer}
+.store-item:hover{background:#1c2128}
+.store-cb{width:14px;height:14px}
+.sel-actions{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.btn-sm{padding:3px 10px;font-size:11px;border-radius:4px;border:1px solid #30363d;background:#0d1117;color:#8b949e;cursor:pointer}
+.btn-sm:hover{color:#e6edf3;border-color:#8b949e}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">📡</div>
+  <div><h1>SatışRadar v2</h1><p>Çoklu Mağaza Satış Boşluğu Analizi</p></div>
+</header>
+<div class="main">
+
+  <div id="init-bar">
+    <div style="font-size:13px;color:#8b949e" id="init-txt">⏳ Python motoru yükleniyor, lütfen bekleyin...</div>
+    <div id="init-progress"><div id="init-fill"></div></div>
+  </div>
+
+  <div class="card" id="upload-card" style="display:none">
+    <div class="dropzone" id="dropzone"
+         onclick="document.getElementById('fi').click()"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+      <div id="dzc">
+        <div class="dz-icon">📂</div>
+        <div class="dz-title">Excel dosyasını buraya sürükleyin</div>
+        <div class="dz-sub">veya tıklayarak seçin (.xlsx / .xls)</div>
+      </div>
+    </div>
+    <input type="file" id="fi" accept=".xlsx,.xls" style="display:none" onchange="loadFile(event.target.files[0])">
+  </div>
+
+  <div class="card">
+    <div class="filters">
+      <div class="fg"><label>BAŞLANGIÇ SAATİ</label><input type="time" id="startTime" value="09:00"></div>
+      <div class="fg"><label>BİTİŞ SAATİ</label><input type="time" id="endTime" value="21:00"></div>
+      <div class="fg"><label>MİN. BOŞLUK (dk)</label><input type="number" id="minGap" value="30" min="1" max="480" style="width:100px"></div>
+      <div class="fg"><label>BAŞLANGIÇ TARİHİ</label><input type="date" id="startDate"></div>
+      <div class="fg"><label>BİTİŞ TARİHİ</label><input type="date" id="endDate"></div>
+      <button class="btn btn-green" onclick="analyze()">🔍 Analiz Et</button>
+    </div>
+  </div>
+
+  <div class="card" id="store-card" style="display:none">
+    <div style="font-size:12px;color:#8b949e;margin-bottom:6px" id="selCount"></div>
+    <div class="sel-actions">
+      <button class="btn-sm" onclick="selectAll()">Tümünü Seç</button>
+      <button class="btn-sm" onclick="deselectAll()">Tümünü Kaldır</button>
+      <button class="btn-sm" onclick="selectOnlyGaps()">⚠️ Sadece Boşluklular</button>
+      <input type="text" id="storeSearch" placeholder="Mağaza ara..." style="flex:1;min-width:120px" oninput="filterStores()">
+    </div>
+    <div class="store-list-wrap" id="storeList"></div>
+  </div>
+
+  <div id="loading">⏳ <span id="loadTxt">Yükleniyor...</span></div>
+  <div id="err"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+var pyodide = null;
+var allRecs = [], allMags = [], gapMags = new Set(), lastFound = [];
+
+// ─── Pyodide Başlat ───────────────────────────────────────────────────────────
+async function initPyodide() {
+  try {
+    setInitTxt('Python motoru indiriliyor (~10MB, bir kez...)');
+    setFill(10);
+    pyodide = await loadPyodide();
+    setFill(50);
+    setInitTxt('openpyxl yükleniyor...');
+    await pyodide.loadPackage('micropip');
+    setFill(60);
+    await pyodide.runPythonAsync(`
+import micropip
+await micropip.install('openpyxl')
+`);
+    setFill(100);
+    setInitTxt('✅ Hazır! Excel dosyanızı yükleyin.');
+    document.getElementById('upload-card').style.display = 'block';
+    setTimeout(function(){ document.getElementById('init-bar').style.display = 'none'; }, 1500);
+  } catch(e) {
+    setInitTxt('❌ Hata: ' + e.message + ' — İnternet bağlantısını kontrol edin.');
+  }
+}
+
+function setInitTxt(t){ document.getElementById('init-txt').textContent = t; }
+function setFill(p){ document.getElementById('init-fill').style.width = p + '%'; }
+
+// ─── Dosya Yükleme ────────────────────────────────────────────────────────────
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('drag'); }
+function onDragLeave(){ document.getElementById('dropzone').classList.remove('drag'); }
+function onDrop(e){ e.preventDefault(); document.getElementById('dropzone').classList.remove('drag'); loadFile(e.dataTransfer.files[0]); }
+
+function loadFile(file) {
+  if (!file) return;
+  showLoading('Dosya okunuyor...');
+  hideErr(); hideResults();
+  document.getElementById('dropzone').classList.add('loaded');
+  document.getElementById('dzc').innerHTML = '<div class="dz-icon">✅</div><div class="dz-title" style="color:#3fb950">' + escH(file.name) + '</div><div class="dz-sub">Farklı dosya için tıklayın</div>';
+
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      await parseWithPython(e.target.result);
+    } catch(err) {
+      showErr('Hata: ' + err.message);
+      hideLoading();
+    }
+  };
+  reader.onerror = function(){ showErr('Dosya okunamadı.'); hideLoading(); };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── Python ile Parse ─────────────────────────────────────────────────────────
+async function parseWithPython(buffer) {
+  showLoading('Python ile parse ediliyor...');
+  var bytes = new Uint8Array(buffer);
+  pyodide.globals.set('excel_bytes', bytes);
+
+  var result = await pyodide.runPythonAsync(`
+import io, json
+from datetime import datetime
+from collections import defaultdict
+import openpyxl
+
+print("Excel okunuyor...")
+wb = openpyxl.load_workbook(io.BytesIO(bytes(excel_bytes)), read_only=True, data_only=True)
+ws = wb.active
+
+ECOM = ['E-TICARET','ETICARET','ONLINE','TRENDYOL','HEPSIBURADA','N11','GETIR','DIJITAL','SANAL']
+def is_ecom(s):
+    u = s.upper().replace('İ','I').replace('Ğ','G')
+    return any(k in u for k in ECOM)
+
+store_day = defaultdict(list)
+store_bolge = {}
+n = 0
+for i, row in enumerate(ws.iter_rows(values_only=True)):
+    if i == 0: continue
+    dt = row[1]
+    if not isinstance(dt, datetime): continue
+    mag = str(row[2] or '').strip()
+    if not mag or is_ecom(mag): continue
+    store_bolge[mag] = str(row[4] or '').strip()
+    d_iso = dt.strftime('%Y-%m-%d')
+    d_tr  = dt.strftime('%d.%m.%Y')
+    sec   = dt.hour*3600 + dt.minute*60 + dt.second
+    store_day[(mag, d_iso, d_tr)].append(sec)
+    n += 1
+wb.close()
+
+print(f"{n:,} satir islendi, {len(store_bolge)} magaza")
+
+all_found = []
+for (mag, d_iso, d_tr), secs in store_day.items():
+    ss = sorted(secs)
+    for i in range(1, len(ss)):
+        prv, cur = ss[i-1], ss[i]
+        gap = cur - prv
+        if gap <= 0: continue
+        all_found.append({
+            'magaza': mag,
+            'tarih': d_tr,
+            'tarihISO': d_iso,
+            'bas': f'{prv//3600:02d}:{(prv%3600)//60:02d}',
+            'bit': f'{cur//3600:02d}:{(cur%3600)//60:02d}',
+            'sure': round(gap/60),
+            'bolge': store_bolge.get(mag,'')
+        })
+
+all_stores = sorted(store_bolge.keys())
+result = json.dumps({'found': all_found, 'allStores': all_stores})
+result
+`);
+
+  var data = JSON.parse(result);
+  allRecs = data.found;
+  allMags = data.allStores;
+
+  // Tarih aralığı
+  var dates = [...new Set(allRecs.map(function(r){ return r.tarihISO; }))].sort();
+  if (dates.length) {
+    if (!document.getElementById('startDate').value) document.getElementById('startDate').value = dates[0];
+    if (!document.getElementById('endDate').value)   document.getElementById('endDate').value   = dates[dates.length-1];
+  }
+
+  document.getElementById('store-card').style.display = 'block';
+  buildStoreUI();
+  analyze();
+}
+
+// ─── Analiz ───────────────────────────────────────────────────────────────────
+function analyze() {
+  if (!allRecs.length) return;
+  showLoading('Filtreleniyor...');
+  hideResults();
+
+  setTimeout(function() {
+    var stMin  = timeMins(document.getElementById('startTime').value);
+    var etMin  = timeMins(document.getElementById('endTime').value);
+    var mg     = Number(document.getElementById('minGap').value) || 30;
+    var sdStr  = document.getElementById('startDate').value;
+    var edStr  = document.getElementById('endDate').value;
+    var sel    = getChecked();
+
+    var found = allRecs.filter(function(r) {
+      if (sdStr && r.tarihISO < sdStr) return false;
+      if (edStr && r.tarihISO > edStr) return false;
+      if (sel.length > 0 && sel.indexOf(r.magaza) < 0) return false;
+      var bMins = timeMins(r.bas);
+      var cMins = timeMins(r.bit);
+      if (bMins >= etMin || cMins <= stMin) return false;
+      if (r.sure < mg) return false;
+      return true;
+    });
+
+    gapMags = new Set(found.map(function(r){ return r.magaza; }));
+    lastFound = found;
+    filterStores();
+    renderResults(found);
+    hideLoading();
+  }, 10);
+}
+
+// ─── Mağaza Listesi ───────────────────────────────────────────────────────────
+function buildStoreUI() { renderStoreUI(allMags); updateSelCount(); }
+
+function renderStoreUI(visible) {
+  var checked = getChecked();
+  document.getElementById('storeList').innerHTML = visible.map(function(s) {
+    var hasGap = gapMags.has(s);
+    var isChk  = checked.length === 0 || checked.indexOf(s) >= 0;
+    return '<label class="store-item"><input type="checkbox" class="store-cb" value="' + escH(s) + '" ' +
+      (isChk ? 'checked' : '') + ' onchange="updateSelCount()"><span>' + escH(s) + '</span>' +
+      (hasGap ? ' <span style="color:#f85149;font-size:10px">⚠️</span>' : '') + '</label>';
+  }).join('');
+}
+
+function filterStores() {
+  var q = document.getElementById('storeSearch').value.toLowerCase();
+  renderStoreUI(q ? allMags.filter(function(s){ return s.toLowerCase().indexOf(q) >= 0; }) : allMags);
+}
+
+function getChecked() { return [...document.querySelectorAll('.store-cb:checked')].map(function(c){ return c.value; }); }
+function selectAll() { document.querySelectorAll('.store-cb').forEach(function(c){ c.checked = true; }); updateSelCount(); }
+function deselectAll() { document.querySelectorAll('.store-cb').forEach(function(c){ c.checked = false; }); updateSelCount(); }
+function selectOnlyGaps() { document.querySelectorAll('.store-cb').forEach(function(c){ c.checked = gapMags.has(c.value); }); updateSelCount(); }
+function updateSelCount() {
+  var n = getChecked().length, t = allMags.length;
+  document.getElementById('selCount').textContent = n === t ? 'Tümü seçili (' + t + ')' : n + ' / ' + t + ' mağaza seçili';
+}
+
+// ─── Sonuçlar ─────────────────────────────────────────────────────────────────
+function renderResults(found) {
+  var byMag = {};
+  found.forEach(function(r){ (byMag[r.magaza] || (byMag[r.magaza] = [])).push(r); });
+  var mags = Object.keys(byMag).sort(function(a,b){ return byMag[b].length - byMag[a].length; });
+
+  var html = '<div class="summary-row">';
+  if (found.length > 0) {
+    var maxGap = found.reduce(function(m,r){ return r.sure > m ? r.sure : m; }, 0);
+    html += '<div class="sc s-red"><div class="num">' + found.length + '</div><div class="lbl">Toplam Boşluk</div></div>';
+    html += '<div class="sc s-purple"><div class="num">' + mags.length + '</div><div class="lbl">Boşluklu Mağaza</div></div>';
+    html += '<div class="sc s-orange"><div class="num">' + maxGap + ' dk</div><div class="lbl">En Uzun</div></div>';
+  } else {
+    html += '<div class="sc s-green"><div class="num">✅</div><div class="lbl">Boşluk Yok</div></div>';
+  }
+  html += '</div>';
+
+  if (found.length > 0) {
+    html += '<div style="margin-bottom:10px;text-align:right"><button class="btn btn-blue" onclick="exportExcel()" style="font-size:12px;padding:6px 14px">📥 Excel İndir</button></div>';
+    mags.forEach(function(mag, idx) {
+      var rows = byMag[mag];
+      var maxG = rows.reduce(function(m,r){ return r.sure > m ? r.sure : m; }, 0);
+      var cls  = maxG >= 60 ? 'b-red' : 'b-orange';
+      html += '<div class="store-block"><div class="store-hdr" onclick="toggleStore(\'s' + idx + '\')">';
+      html += '<div><span class="store-name">' + escH(mag) + '</span>';
+      if (rows[0].bolge) html += ' <span style="font-size:11px;color:#8b949e">' + escH(rows[0].bolge) + '</span>';
+      html += '</div><div style="display:flex;align-items:center;gap:8px">';
+      html += '<span style="font-size:12px;color:#8b949e">' + rows.length + ' boşluk</span>';
+      html += '<span class="badge ' + cls + '">' + maxG + ' dk</span>';
+      html += '<span style="color:#8b949e;font-size:12px">▼</span>';
+      html += '</div></div><div class="store-rows" id="s' + idx + '">';
+      rows.forEach(function(r) {
+        var col = r.sure >= 60 ? '#f85149' : '#d29922';
+        html += '<div class="gap-row"><span class="gap-date">' + r.tarih + '</span><span class="gap-time">' + r.bas + ' – ' + r.bit + '</span><span class="gap-dur" style="color:' + col + '">' + r.sure + ' dk</span></div>';
+      });
+      html += '</div></div>';
+    });
+  }
+
+  document.getElementById('results').innerHTML = html;
+  document.getElementById('results').style.display = 'block';
+}
+
+function toggleStore(id){ var el = document.getElementById(id); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+
+// ─── Excel Export ─────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!lastFound.length) return;
+  var wb = XLSX.utils.book_new();
+  var magSet = [...new Set(lastFound.map(function(r){ return r.magaza; }))];
+  var ozet = [
+    ['SATIS BOSLUK ANALIZI'], [],
+    ['Toplam Bosluk', lastFound.length],
+    ['Bosluklu Magaza', magSet.length], [],
+    ['Magaza','Tarih','Baslangic','Bitis','Sure (dk)','Bolge Yoneticisi']
+  ];
+  var sorted = [...lastFound].sort(function(a,b){ return b.sure - a.sure; });
+  sorted.forEach(function(r){ ozet.push([r.magaza, r.tarih, r.bas, r.bit, r.sure, r.bolge]); });
+  var wsO = XLSX.utils.aoa_to_sheet(ozet);
+  wsO['!cols'] = [{wch:28},{wch:12},{wch:10},{wch:10},{wch:10},{wch:24}];
+  XLSX.utils.book_append_sheet(wb, wsO, 'Ozet');
+
+  var byMag = {};
+  lastFound.forEach(function(r){ (byMag[r.magaza] || (byMag[r.magaza] = [])).push(r); });
+  Object.keys(byMag).sort().forEach(function(mag) {
+    var rows = [['Tarih','Baslangic','Bitis','Sure (dk)','Bolge']];
+    byMag[mag].forEach(function(r){ rows.push([r.tarih, r.bas, r.bit, r.sure, r.bolge]); });
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:10},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, ws, mag.substring(0,31));
+  });
+  XLSX.writeFile(wb, 'SatisRadar_Bosluklar.xlsx');
+}
+
+// ─── Yardımcı ─────────────────────────────────────────────────────────────────
+function timeMins(t){ if(!t)return 0; var p=t.split(':'); return (+p[0])*60+(+p[1]||0); }
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function showLoading(t){ document.getElementById('loadTxt').textContent=t||''; document.getElementById('loading').style.display='block'; }
+function hideLoading(){ document.getElementById('loading').style.display='none'; }
+function hideResults(){ document.getElementById('results').style.display='none'; }
+function hideErr(){ document.getElementById('err').style.display='none'; }
+function showErr(msg){ hideLoading(); var el=document.getElementById('err'); el.textContent='⚠️ '+msg; el.style.display='block'; }
+
+// Başlat
+initPyodide();
+</script>
+</body>
+</html>
